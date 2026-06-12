@@ -4,15 +4,18 @@ using UnityEngine.InputSystem;
 
 public class IncreaseCountrySize : MonoBehaviour
 {
-    public GameObject territoryGameObject;
-    public GameObject newTerritoryGameObject;
+    public GameObject territoryPrefab;
+    private GameObject _territoryGameObject;
+    private GameObject _newTerritoryGameObject;
     private InputAction _attackAction;
+    private InputAction _clearAction;
     
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        territoryGameObject = this.transform.GetChild(0).gameObject;
+        _territoryGameObject = Instantiate(territoryPrefab, this.transform);
         _attackAction = InputSystem.actions.FindAction("Attack");
+        _clearAction = InputSystem.actions.FindAction("Clear");
         
     }
 
@@ -27,6 +30,18 @@ public class IncreaseCountrySize : MonoBehaviour
             // Vector3 mouseWorldPos = Mouse.current.position.ReadValue();
             ExpandCountry(mousePos);
         };
+        
+        if (_clearAction.WasPressedThisFrame())
+        {
+
+            foreach (Transform child in this.transform)
+            {
+                Destroy(child.gameObject);
+            }
+            
+            _territoryGameObject = Instantiate(territoryPrefab, this.transform);
+            
+        }
     }
 
     private void ExpandCountry(Vector3 targetPosition)
@@ -44,20 +59,43 @@ public class IncreaseCountrySize : MonoBehaviour
             // return ray.GetPoint(enter);
             targetPosition = ray.GetPoint(enter);
         }
+
+        Transform closestChild = _territoryGameObject.transform;
+        
+        foreach (Transform child in this.transform)
+        {
+            if (closestChild)
+            {
+                float childX = targetPosition.x - child.position.x;
+                float childZ = targetPosition.z - child.position.z;
+                Vector3 childDistance = targetPosition - child.position;
+                
+                Vector3 closestChildDistance = targetPosition - closestChild.position;
+
+                if (childDistance.sqrMagnitude < closestChildDistance.sqrMagnitude)
+                {
+                    closestChild = child;
+                }
+            }
+            else
+            {
+                closestChild = child;
+            }
+            
+            
+        }
         
         
+        _newTerritoryGameObject = Instantiate(closestChild.gameObject, this.transform);
+        _newTerritoryGameObject.gameObject.name = "Territory" + this.transform.childCount;
+        
+        float newXPosition = closestChild.position.x;
         
         
-        newTerritoryGameObject = Instantiate(territoryGameObject, this.transform);
-        newTerritoryGameObject.gameObject.name = "Territory" + this.transform.childCount;
+        float newZPosition = closestChild.position.z;
         
-        float newXPosition = newTerritoryGameObject.transform.position.x;
-        
-        
-        float newZPosition = newTerritoryGameObject.transform.position.z;
-        
-        float xDistance = targetPosition.x - newTerritoryGameObject.transform.position.x;
-        float zDistance = targetPosition.z - newTerritoryGameObject.transform.position.z;
+        float xDistance = targetPosition.x - closestChild.position.x;
+        float zDistance = targetPosition.z - closestChild.position.z;
         
         float absXDistance = Mathf.Abs(xDistance);
         float absZDistance = Mathf.Abs(zDistance);
@@ -66,28 +104,28 @@ public class IncreaseCountrySize : MonoBehaviour
         {
             if (xDistance > 0)
             {
-                newXPosition = newTerritoryGameObject.transform.position.x + 10;
+                newXPosition = closestChild.position.x + 10;
             }
             else
             {
-                newXPosition = newTerritoryGameObject.transform.position.x - 10;
+                newXPosition = closestChild.position.x - 10;
             }
         } else
         {
             if (zDistance > 0)
             {
-                newZPosition = newTerritoryGameObject.transform.position.z + 10;
+                newZPosition = closestChild.position.z + 10;
             }
             else
             {
-                newZPosition = newTerritoryGameObject.transform.position.z - 10;
+                newZPosition = closestChild.position.z - 10;
             }
         }
         
         
 
-        newTerritoryGameObject.transform.position = new Vector3(newXPosition, newTerritoryGameObject.transform.position.y, newZPosition);
+        _newTerritoryGameObject.transform.position = new Vector3(newXPosition, _newTerritoryGameObject.transform.position.y, newZPosition);
         // newTerritoryGameObject.transform.position = new Vector3(newTerritoryGameObject.transform.position.x + 10, newTerritoryGameObject.transform.position.y, newTerritoryGameObject.transform.position.z);
-        territoryGameObject = this.transform.GetChild(this.transform.childCount - 1).gameObject;
+        // territoryGameObject = this.transform.GetChild(this.transform.childCount - 1).gameObject;
     }
 }

@@ -9,6 +9,8 @@ public class IncreaseCountrySize : MonoBehaviour
     private GameObject _newTerritoryGameObject;
     private InputAction _attackAction;
     private InputAction _clearAction;
+    private Plane _horizontalPlane;
+    private Ray _ray;
     
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -16,6 +18,7 @@ public class IncreaseCountrySize : MonoBehaviour
         _territoryGameObject = Instantiate(territoryPrefab, this.transform);
         _attackAction = InputSystem.actions.FindAction("Attack");
         _clearAction = InputSystem.actions.FindAction("Clear");
+        _horizontalPlane = new Plane(Vector3.up, new Vector3(0, 1, 0));
         
     }
 
@@ -25,9 +28,8 @@ public class IncreaseCountrySize : MonoBehaviour
         if(_attackAction.WasPressedThisFrame())
         {
             Vector3 mousePos = Mouse.current.position.ReadValue();
-            // mousePos.z = 10;
-            // Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(mousePos);
-            // Vector3 mouseWorldPos = Mouse.current.position.ReadValue();
+            
+            _ray = Camera.main.ScreenPointToRay(mousePos);
             ExpandCountry(mousePos);
         };
         
@@ -44,54 +46,89 @@ public class IncreaseCountrySize : MonoBehaviour
         }
     }
 
-    private void ExpandCountry(Vector3 targetPosition)
+    private Transform FindNearestTerritory(Vector3 targetPosition, Transform parent)
     {
-
-
-        Ray ray = Camera.main.ScreenPointToRay(targetPosition);
+        // Transform closestChild = _territoryGameObject.transform;
+        //
+        // foreach (Transform child in parent)
+        // {
+        //     if (closestChild)
+        //     {
+        //         Vector3 childDistance = targetPosition - child.position;
+        //         
+        //         Vector3 closestChildDistance = targetPosition - closestChild.position;
+        //
+        //         if (childDistance.sqrMagnitude < closestChildDistance.sqrMagnitude)
+        //         {
+        //             closestChild = child;
+        //         }
+        //     }
+        //     else
+        //     {
+        //         closestChild = child;
+        //     }
+        //     
+        // }
+        // return closestChild;
         
-        Plane horizontalPlane = new Plane(Vector3.up, new Vector3(0, 1, 0));
+        float radius = 10;
+        
+        Collider closestCollider = new Collider();
+        
+        Collider[] hitColliders = new Collider[10];
+        
+        int test = Physics.OverlapSphereNonAlloc(targetPosition, radius, hitColliders);
 
-        // 3. Intersect the ray with the plane
-        if (horizontalPlane.Raycast(ray, out float enter))
+        if (test == 0)
         {
-            // Get the exact Vector3 point where the ray crossed the plane
-            // return ray.GetPoint(enter);
-            targetPosition = ray.GetPoint(enter);
+            radius += 10;
+            test = Physics.OverlapSphereNonAlloc(targetPosition, radius, hitColliders);
         }
-
-        Transform closestChild = _territoryGameObject.transform;
-        
-        foreach (Transform child in this.transform)
+        else
         {
-            if (closestChild)
+            foreach (Collider hitCollider in hitColliders)
             {
-                float childX = targetPosition.x - child.position.x;
-                float childZ = targetPosition.z - child.position.z;
-                Vector3 childDistance = targetPosition - child.position;
-                
-                Vector3 closestChildDistance = targetPosition - closestChild.position;
-
-                if (childDistance.sqrMagnitude < closestChildDistance.sqrMagnitude)
+                // TODO Returns nullReferenceException
+                Vector3 testVal = hitCollider.ClosestPointOnBounds(targetPosition);
+                if (closestCollider)
                 {
-                    closestChild = child;
+                    if (testVal.sqrMagnitude < closestCollider.ClosestPointOnBounds(targetPosition).sqrMagnitude)
+                    {
+                        closestCollider = hitCollider;
+                    }
+                }
+                else
+                {
+                    closestCollider = hitCollider;
                 }
             }
-            else
-            {
-                closestChild = child;
-            }
-            
-            
+        }
+
+        return closestCollider.transform;
+    }
+    
+    private void ExpandCountry(Vector3 targetPosition)
+    {
+        
+        
+        // 3. Intersect the ray with the plane
+        if (_horizontalPlane.Raycast(_ray, out float enter))
+        {
+            // Get the exact Vector3 point where the ray crossed the plane
+            targetPosition = _ray.GetPoint(enter);
         }
         
+        Transform closestChild = FindNearestTerritory(targetPosition, transform);
         
-        _newTerritoryGameObject = Instantiate(closestChild.gameObject, this.transform);
-        _newTerritoryGameObject.gameObject.name = "Territory" + this.transform.childCount;
+        if (Physics.Raycast(_ray, out RaycastHit hit))
+        {
+            if (hit.transform.position == closestChild.position)
+            {
+                return;
+            }
+        }
         
         float newXPosition = closestChild.position.x;
-        
-        
         float newZPosition = closestChild.position.z;
         
         float xDistance = targetPosition.x - closestChild.position.x;
@@ -123,9 +160,9 @@ public class IncreaseCountrySize : MonoBehaviour
         }
         
         
+        _newTerritoryGameObject = Instantiate(territoryPrefab, transform);
+        _newTerritoryGameObject.gameObject.name = "Territory" + transform.childCount;
 
         _newTerritoryGameObject.transform.position = new Vector3(newXPosition, _newTerritoryGameObject.transform.position.y, newZPosition);
-        // newTerritoryGameObject.transform.position = new Vector3(newTerritoryGameObject.transform.position.x + 10, newTerritoryGameObject.transform.position.y, newTerritoryGameObject.transform.position.z);
-        // territoryGameObject = this.transform.GetChild(this.transform.childCount - 1).gameObject;
     }
 }
